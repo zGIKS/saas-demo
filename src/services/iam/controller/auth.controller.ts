@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authService, SignUpData, SignInData } from '../auth.service';
+import { authService, getAuthSdk, SignUpData, SignInData } from '../auth.service';
 import { ResponseHandler, ValidationHelper } from './auth.response';
 
 export class AuthController {
@@ -86,22 +86,22 @@ export class AuthController {
         return ResponseHandler.validationError('Verification token is required');
       }
 
-      // For demo purposes, validate token format (UUID v4)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(token)) {
-        return ResponseHandler.error('Invalid verification token format', 400);
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return ResponseHandler.error(error || 'Auth SDK is not configured.', 500);
       }
 
-      // Mock verification logic: in a real app, verify against database
-      // For demo, assume token is valid if it matches the format
-      console.log('Email verification successful for token:', token);
+      await sdk.auth.confirmRegistration(token.trim());
 
       return ResponseHandler.success({
         message: 'Email verified successfully',
       });
     } catch (error) {
       console.error('Confirm registration controller error:', error);
-      return ResponseHandler.serverError();
+      return ResponseHandler.error(
+        error instanceof Error ? error.message : 'Email verification failed',
+        400
+      );
     }
   }
 }

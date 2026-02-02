@@ -1,6 +1,5 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
 import { setTokenCookie, setRefreshTokenCookie } from '@/lib/auth';
+import { getAuthSdk } from './auth.service';
 
 export interface SignInData {
   email: string;
@@ -13,14 +12,12 @@ export interface AuthResult {
   message?: string;
 }
 
-interface ApiErrorData {
-  message?: string;
-}
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
 
-// Helper to check if API is configured
-const isApiConfigured = (): boolean => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  return !!(apiUrl && apiUrl.trim());
+  return fallback;
 };
 
 export const signInService = {
@@ -34,89 +31,37 @@ export const signInService = {
         };
       }
 
-      // Check if API is configured
-      if (!isApiConfigured()) {
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
         return {
           success: false,
-          message: 'API configuration missing. Please set NEXT_PUBLIC_API_URL in your environment.',
+          message: error || 'Auth SDK is not configured.',
         };
       }
 
-      // Call external API for sign in
-      const response = await axiosConfig.post('/api/v1/auth/sign-in', data);
+      const response = await sdk.auth.signIn({
+        email: data.email.trim(),
+        password: data.password,
+      });
 
-      // Validate response structure
-      if (!response.data || typeof response.data !== 'object') {
-        console.error('Invalid API response structure');
-        return {
-          success: false,
-          message: 'Invalid response from server',
-        };
+      if (response?.token) {
+        setTokenCookie(response.token);
       }
-
-      console.log('Sign in successful for:', data.email);
-
-      // Set auth cookies
-      if (response.data.token) {
-        setTokenCookie(response.data.token);
-      }
-      if (response.data.refresh_token) {
-        setRefreshTokenCookie(response.data.refresh_token);
+      if (response?.refresh_token) {
+        setRefreshTokenCookie(response.refresh_token);
       }
 
       return {
         success: true,
-        data: response.data,
+        data: response,
       };
     } catch (error: unknown) {
       console.error('Sign in service error:', error);
 
-      // Type guard for AxiosError
-      const isAxiosError = (err: unknown): err is AxiosError => {
-        return (err as AxiosError).response !== undefined;
+      return {
+        success: false,
+        message: getErrorMessage(error, 'An unexpected error occurred. Please try again.'),
       };
-
-      // Handle different error types
-      if (isAxiosError(error) && error.response) {
-        const { status, data } = error.response;
-        const errorData = data as ApiErrorData;
-        if (status === 400) {
-          return {
-            success: false,
-            message: errorData?.message || 'Invalid credentials',
-          };
-        } else if (status === 401) {
-          return {
-            success: false,
-            message: errorData?.message || 'Invalid email or password',
-          };
-        } else if (status === 404) {
-          return {
-            success: false,
-            message: errorData?.message || 'Endpoint not found. Check API configuration.',
-          };
-        } else if (status >= 500) {
-          return {
-            success: false,
-            message: 'Server error. Please try again later.',
-          };
-        } else {
-          return {
-            success: false,
-            message: errorData?.message || `Request failed with status ${status}`,
-          };
-        }
-      } else if (isAxiosError(error) && error.request) {
-        return {
-          success: false,
-          message: 'Network error. Check your connection and try again.',
-        };
-      } else {
-        return {
-          success: false,
-          message: 'An unexpected error occurred. Please try again.',
-        };
-      }
     }
   },
 };

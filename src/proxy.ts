@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getTokenFromServerCookie } from '@/lib/auth';
+import { getAuthSdk } from '@/services/iam/auth.service';
 
 export async function proxy(request: NextRequest) {
   // Get the token from cookies
@@ -20,19 +21,15 @@ export async function proxy(request: NextRequest) {
 
     // Optional: Verify token with backend
     try {
-      const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/verify?token=${token}`, {
-        method: 'GET',
-      });
-
-      if (!verifyRes.ok) {
-        // Token invalid, clear cookie and redirect
+      const { sdk } = getAuthSdk();
+      if (!sdk) {
         const response = NextResponse.redirect(new URL('/sign-in', request.url));
         response.cookies.delete('auth_token');
         return response;
       }
 
-      const verifyData = await verifyRes.json();
-      if (!verifyData.is_valid) {
+      const verifyData = await sdk.auth.verifyToken(token);
+      if (!verifyData?.is_valid) {
         const response = NextResponse.redirect(new URL('/sign-in', request.url));
         response.cookies.delete('auth_token');
         return response;
@@ -40,7 +37,9 @@ export async function proxy(request: NextRequest) {
     } catch (error) {
       console.error('Token verification error:', error);
       // On error, redirect to login
-      return NextResponse.redirect(new URL('/sign-in', request.url));
+      const response = NextResponse.redirect(new URL('/sign-in', request.url));
+      response.cookies.delete('auth_token');
+      return response;
     }
   }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInService } from '@/services/iam/auth-signin.service';
+import { getAuthSdk } from '@/services/iam/auth.service';
+import { setRefreshTokenCookie, setTokenCookie } from '@/lib/auth';
 import { ROUTE_PATHS } from '@/lib/paths';
 
 interface SignInData {
@@ -24,19 +25,36 @@ export function useSignIn(): UseSignInReturn {
     setError(null);
 
     try {
-      const result = await signInService.signIn(data);
-
-      if (result.success) {
-        // Redirect to dashboard
-        router.push(ROUTE_PATHS.dashboard);
-        return { success: true };
-      } else {
-        const errorMessage = result.message || 'Invalid credentials';
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        const errorMessage = error || 'Auth SDK is not configured.';
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
-    } catch {
-      const errorMessage = 'Network error. Please try again.';
+
+      const result = await sdk.auth.signIn({
+        email: data.email.trim(),
+        password: data.password,
+      });
+
+      if (result?.token) {
+        setTokenCookie(result.token);
+      }
+      if (result?.refresh_token) {
+        setRefreshTokenCookie(result.refresh_token);
+      }
+
+      if (result) {
+        // Redirect to dashboard
+        router.push(ROUTE_PATHS.dashboard);
+        return { success: true };
+      }
+
+      const errorMessage = 'Invalid credentials';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Network error. Please try again.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {

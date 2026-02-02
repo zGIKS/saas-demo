@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { buildApiUrl, API_PATHS } from '@/lib/paths';
+import { getAuthSdk } from '@/services/iam/auth.service';
 
 export function useGoogleLogin() {
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -7,8 +7,15 @@ export function useGoogleLogin() {
   const startGoogleLogin = useCallback(() => {
     if (typeof window === 'undefined') return;
 
+    const { sdk } = getAuthSdk();
+    if (!sdk) {
+      console.error('Auth SDK is not configured.');
+      return;
+    }
+
     setIsRedirecting(true);
-    window.location.href = buildApiUrl(API_PATHS.googleAuth);
+    const url = sdk.auth.getGoogleAuthUrl();
+    window.location.href = url;
   }, []);
 
   return { startGoogleLogin, isRedirecting };

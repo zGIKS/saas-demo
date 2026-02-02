@@ -1,5 +1,4 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
+import { getAuthSdk } from './auth.service';
 
 export interface SignUpData {
   email: string;
@@ -12,14 +11,12 @@ export interface AuthResult {
   message?: string;
 }
 
-interface ApiErrorData {
-  message?: string;
-}
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
 
-// Helper to check if API is configured
-const isApiConfigured = (): boolean => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  return !!(apiUrl && apiUrl.trim());
+  return fallback;
 };
 
 export const signUpService = {
@@ -33,84 +30,30 @@ export const signUpService = {
         };
       }
 
-      // Check if API is configured
-      if (!isApiConfigured()) {
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
         return {
           success: false,
-          message: 'API configuration missing. Please set NEXT_PUBLIC_API_URL in your environment.',
+          message: error || 'Auth SDK is not configured.',
         };
       }
 
-      // Call external API for sign up
-      const response = await axiosConfig.post('/api/v1/auth/sign-up', data);
-
-      // Validate response structure
-      if (!response.data || typeof response.data !== 'object') {
-        console.error('Invalid API response structure');
-        return {
-          success: false,
-          message: 'Invalid response from server',
-        };
-      }
-
-      console.log('Sign up successful for:', data.email);
+      const response = await sdk.auth.signUp({
+        email: data.email.trim(),
+        password: data.password,
+      });
 
       return {
         success: true,
-        data: response.data,
+        data: response,
       };
     } catch (error: unknown) {
       console.error('Sign up service error:', error);
 
-      // Type guard for AxiosError
-      const isAxiosError = (err: unknown): err is AxiosError => {
-        return (err as AxiosError).response !== undefined;
+      return {
+        success: false,
+        message: getErrorMessage(error, 'An unexpected error occurred. Please try again.'),
       };
-
-      // Handle different error types
-      if (isAxiosError(error) && error.response) {
-        // API responded with error
-        const { status, data } = error.response;
-        const errorData = data as ApiErrorData;
-        if (status === 400) {
-          return {
-            success: false,
-            message: errorData?.message || 'Invalid request data',
-          };
-        } else if (status === 404) {
-          return {
-            success: false,
-            message: errorData?.message || 'Endpoint not found. Check API configuration.',
-          };
-        } else if (status === 409) {
-          return {
-            success: false,
-            message: errorData?.message || 'User already exists',
-          };
-        } else if (status >= 500) {
-          return {
-            success: false,
-            message: 'Server error. Please try again later.',
-          };
-        } else {
-          return {
-            success: false,
-            message: errorData?.message || `Request failed with status ${status}`,
-          };
-        }
-      } else if (isAxiosError(error) && error.request) {
-        // Network error
-        return {
-          success: false,
-          message: 'Network error. Check your connection and try again.',
-        };
-      } else {
-        // Other errors
-        return {
-          success: false,
-          message: 'An unexpected error occurred. Please try again.',
-        };
-      }
     }
   },
 };

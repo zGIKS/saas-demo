@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { googleAuthService, AuthResult } from '@/services/iam/auth-google.service';
+import { getAuthSdk } from '@/services/iam/auth.service';
+import { setRefreshTokenCookie, setTokenCookie } from '@/lib/auth';
 
 export function useGoogleAuthClaim() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const claimCode = useCallback(async (code: string): Promise<AuthResult> => {
+  const claimCode = useCallback(async (code: string) => {
     if (!code) {
       const message = 'Google exchange code is missing.';
       setError(message);
@@ -16,11 +17,23 @@ export function useGoogleAuthClaim() {
     setError(null);
 
     try {
-      const result = await googleAuthService.claimCode({ code });
-      if (!result.success) {
-        setError(result.message || 'No se pudo reclamar el código de Google.');
+      const { sdk, error: sdkError } = getAuthSdk();
+      if (!sdk) {
+        const message = sdkError || 'Auth SDK is not configured.';
+        setError(message);
+        return { success: false, message };
       }
-      return result;
+
+      const result = await sdk.auth.claimGoogle(code);
+
+      if (result?.token) {
+        setTokenCookie(result.token);
+      }
+      if (result?.refresh_token) {
+        setRefreshTokenCookie(result.refresh_token);
+      }
+
+      return { success: true, data: result };
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred during the Google login flow.';

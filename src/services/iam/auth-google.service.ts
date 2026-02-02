@@ -1,6 +1,5 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
 import { setRefreshTokenCookie, setTokenCookie } from '@/lib/auth';
+import { getAuthSdk } from './auth.service';
 
 export interface GoogleClaimData {
   code: string;
@@ -12,27 +11,9 @@ export interface AuthResult {
   message?: string;
 }
 
-const isApiConfigured = (): boolean => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  return !!(apiUrl && apiUrl.trim());
-};
-
 const getErrorMessage = (error: unknown): string => {
-  if (!axiosConfig || !axiosConfig.defaults) {
-    return 'API client is not configured properly.';
-  }
-
-  const isAxiosError = (err: unknown): err is AxiosError => {
-    return (err as AxiosError).isAxiosError === true;
-  };
-
-  if (isAxiosError(error) && error.response) {
-    const data = error.response.data as { message?: string } | undefined;
-    return data?.message || 'Unable to complete Google login.';
-  }
-
-  if (isAxiosError(error) && error.request) {
-    return 'Unable to reach the authentication server. Please check your connection.';
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
 
   return 'An unexpected error occurred while claiming the Google code.';
@@ -44,26 +25,27 @@ export const googleAuthService = {
       return { success: false, message: 'Missing Google exchange code.' };
     }
 
-    if (!isApiConfigured()) {
-      return {
-        success: false,
-        message: 'API configuration missing. Please set NEXT_PUBLIC_API_URL before signing in.',
-      };
-    }
-
     try {
-      const response = await axiosConfig.post('/api/v1/auth/google/claim', payload);
-
-      if (response.data?.token) {
-        setTokenCookie(response.data.token);
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return {
+          success: false,
+          message: error || 'Auth SDK is not configured.',
+        };
       }
-      if (response.data?.refresh_token) {
-        setRefreshTokenCookie(response.data.refresh_token);
+
+      const response = await sdk.auth.claimGoogle(payload.code);
+
+      if (response?.token) {
+        setTokenCookie(response.token);
+      }
+      if (response?.refresh_token) {
+        setRefreshTokenCookie(response.refresh_token);
       }
 
       return {
         success: true,
-        data: response.data,
+        data: response,
       };
     } catch (error: unknown) {
       console.error('Google claim error:', error);
