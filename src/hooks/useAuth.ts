@@ -58,7 +58,7 @@ export function useAuth(): UseAuthReturn {
           return;
         }
 
-        let verifyResult: { is_valid: boolean; sub?: string } | null = null;
+        let verifyResult: { is_valid: boolean } | null = null;
         try {
           verifyResult = await sdk.auth.verifyToken(token);
         } catch (error) {
@@ -66,8 +66,8 @@ export function useAuth(): UseAuthReturn {
           verifyResult = { is_valid: false };
         }
 
-        if (verifyResult?.is_valid && verifyResult.sub) {
-          setUser({ id: verifyResult.sub });
+        if (verifyResult?.is_valid) {
+          setUser({ id: 'authenticated' });
         } else {
           // Try refresh token
           const refreshToken = getRefreshTokenFromCookie();
@@ -84,8 +84,8 @@ export function useAuth(): UseAuthReturn {
               const newToken = refreshResult?.token || getTokenFromCookie();
               if (newToken) {
                 const newVerifyResult = await sdk.auth.verifyToken(newToken);
-                if (newVerifyResult?.is_valid && newVerifyResult.sub) {
-                  setUser({ id: newVerifyResult.sub });
+                if (newVerifyResult?.is_valid) {
+                  setUser({ id: 'authenticated' });
                 } else {
                   await logout();
                 }

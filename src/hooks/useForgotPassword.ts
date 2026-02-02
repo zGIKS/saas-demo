@@ -27,13 +27,10 @@ export function useForgotPassword(): UseForgotPasswordReturn {
     }
 
     try {
-      const result = await sdk.auth.forgotPassword(email.trim());
-      const message =
-        (result && typeof result === 'object' && 'message' in result ? String(result.message) : undefined) ??
-        'Revisa tu bandeja. Si el correo existe, recibirás un enlace.';
+      await sdk.auth.forgotPassword(email.trim());
 
       setStatus('success');
-      setMessage(message);
+      setMessage('Revisa tu bandeja. Si el correo existe, recibirás un enlace.');
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo procesar la solicitud.';

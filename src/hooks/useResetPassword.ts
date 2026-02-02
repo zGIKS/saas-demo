@@ -27,13 +27,10 @@ export function useResetPassword(): UseResetPasswordReturn {
     }
 
     try {
-      const result = await sdk.auth.resetPassword(token, newPassword);
-      const message =
-        (result && typeof result === 'object' && 'message' in result ? String(result.message) : undefined) ??
-        'Contraseña actualizada correctamente.';
+      await sdk.auth.resetPassword(token, newPassword);
 
       setStatus('success');
-      setMessage(message);
+      setMessage('Contraseña actualizada correctamente.');
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo restablecer la contraseña.';

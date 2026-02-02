@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { authService, getAuthSdk, SignUpData, SignInData } from '../auth.service';
 import { ResponseHandler, ValidationHelper } from './auth.response';
 
