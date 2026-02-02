@@ -18,12 +18,13 @@ export function useVerifyEmail(token: string | null) {
       }
 
       try {
-        await sdk.auth.confirmRegistration(token);
+        const url = `/api/v1/auth/confirm-registration?token=${encodeURIComponent(token)}`;
         if (isMounted) {
-          window.location.href = `${ROUTE_PATHS.emailVerified}?success=true`;
+          window.location.href = url;
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'The verification link is invalid or has expired.';
+        const message =
+          error instanceof Error ? error.message : 'The verification link is invalid or has expired.';
         if (isMounted) {
           window.location.href = `${ROUTE_PATHS.emailVerificationFailed}?message=${encodeURIComponent(message)}`;
         }

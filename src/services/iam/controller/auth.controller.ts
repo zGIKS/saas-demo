@@ -91,11 +91,8 @@ export class AuthController {
         return ResponseHandler.error(error || 'Auth SDK is not configured.', 500);
       }
 
-      await sdk.auth.confirmRegistration(token.trim());
-
-      return ResponseHandler.success({
-        message: 'Email verified successfully',
-      });
+      const url = sdk.auth.getConfirmRegistrationUrl(token.trim());
+      return NextResponse.redirect(url);
     } catch (error) {
       console.error('Confirm registration controller error:', error);
       return ResponseHandler.error(

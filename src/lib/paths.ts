@@ -1,8 +1,10 @@
 // API configuration and paths
 export const API_BASE_URL = (() => {
-  const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+  const base =
+    process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') ??
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
   if (!base) {
-    throw new Error('NEXT_PUBLIC_API_URL environment variable is not set');
+    throw new Error('NEXT_PUBLIC_API_BASE environment variable is not set');
   }
   return base.startsWith('http') ? base : `http://${base}`;
 })();

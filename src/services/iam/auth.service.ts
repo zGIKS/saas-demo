@@ -19,15 +19,22 @@ export interface AuthResult {
 let sdkInstance: AuthSDK | null = null;
 
 const resolveSdkConfig = (): { apiKey: string; baseUrl: string } | { error: string } => {
-  const apiKey = process.env.NEXT_PUBLIC_ANON_KEY?.trim();
+  const apiKey =
+    process.env.NEXT_PUBLIC_TENANT_KEY?.trim() ?? process.env.NEXT_PUBLIC_ANON_KEY?.trim();
   if (!apiKey) {
-    return { error: 'NEXT_PUBLIC_ANON_KEY is not set. Please configure your tenant anon key.' };
+    return {
+      error:
+        'NEXT_PUBLIC_TENANT_KEY is not set. Please configure your tenant anon key (or NEXT_PUBLIC_ANON_KEY).',
+    };
   }
 
-  const baseUrlRaw = process.env.NEXT_PUBLIC_API_URL?.trim();
+  const baseUrlRaw =
+    process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_URL?.trim();
   const baseUrl = baseUrlRaw ? baseUrlRaw.replace(/\/$/, '') : undefined;
   if (!baseUrl) {
-    return { error: 'NEXT_PUBLIC_API_URL is not set. Please configure the backend URL.' };
+    return {
+      error: 'NEXT_PUBLIC_API_BASE is not set. Please configure the backend URL (or NEXT_PUBLIC_API_URL).',
+    };
   }
 
   return { apiKey, baseUrl };
