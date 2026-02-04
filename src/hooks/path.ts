@@ -1,7 +1,7 @@
 // API paths for hooks
 export const API_PATHS = {
   // Auth endpoints
-  signUp: '/api/v1/auth/sign-up',
+  signUp: '/api/v1/identity/sign-up',
   signIn: '/api/v1/auth/sign-in',
   confirmRegistration: '/api/v1/identity/confirm-registration',
   googleAuth: '/api/v1/auth/google',

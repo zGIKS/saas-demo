@@ -1,4 +1,5 @@
 import { AuthSDK } from 'auth-sdk';
+import axiosConfig from '../axios.config';
 
 export interface SignUpData {
   email: string;
@@ -76,20 +77,24 @@ export const authService = {
       };
     }
 
-    const { sdk, error } = getAuthSdk();
-    if (!sdk) {
-      return { success: false, message: error || 'Auth SDK is not configured.' };
+    const config = resolveSdkConfig();
+    if ('error' in config) {
+      return { success: false, message: config.error };
     }
 
     try {
-      const result = await sdk.auth.signUp({
+      const response = await axiosConfig.post('/api/v1/identity/sign-up', {
         email: data.email.trim(),
         password: data.password,
+      }, {
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+        },
       });
 
       return {
         success: true,
-        data: result,
+        data: response.data,
       };
     } catch (err) {
       console.error('Sign up service error:', err);

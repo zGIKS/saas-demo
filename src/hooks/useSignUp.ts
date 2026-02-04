@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getAuthSdk } from '@/services/iam/auth.service';
+import { authService } from '@/services/iam/auth.service';
 
 interface SignUpData {
   email: string;
@@ -23,19 +23,15 @@ export function useSignUp(): UseSignUpReturn {
     setError(null);
 
     try {
-      const { sdk, error } = getAuthSdk();
-      if (!sdk) {
-        const errorMessage = error || 'Auth SDK is not configured.';
+      const result = await authService.signUp(data);
+
+      if (result.success) {
+        return { success: true };
+      } else {
+        const errorMessage = result.message || 'Failed to create account';
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
-
-      await sdk.auth.signUp({
-        email: data.email.trim(),
-        password: data.password,
-      });
-
-      return { success: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Network error. Please try again.';
       setError(errorMessage);
