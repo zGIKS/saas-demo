@@ -1,6 +1,4 @@
-import { isAxiosError } from 'axios';
-import axiosConfig from '../axios.config';
-import { API_PATHS } from '@/lib/paths';
+import { getAuthSdk } from './auth.service';
 
 interface ApiErrorPayload {
   message?: string;
@@ -17,18 +15,7 @@ const apiMessage = (data: unknown): string | undefined => {
   return typeof message === 'string' ? message : undefined;
 };
 
-const isApiConfigured = (): boolean => Boolean(axiosConfig.defaults.baseURL);
-
 const normalizeError = (error: unknown, fallback: string): string => {
-  if (isAxiosError(error)) {
-    if (error.response) {
-      return apiMessage(error.response.data) ?? fallback;
-    }
-    if (error.request) {
-      return 'No response from the server. Check your connection.';
-    }
-  }
-
   if (error instanceof Error && error.message) {
     return error.message;
   }
@@ -45,21 +32,20 @@ export const identityService = {
       };
     }
 
-    if (!isApiConfigured()) {
-      return {
-        success: false,
-        message: 'API URL is not configured.',
-      };
-    }
-
     try {
-      const response = await axiosConfig.post(API_PATHS.forgotPassword, {
-        email: email.trim(),
-      });
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return {
+          success: false,
+          message: error || 'Auth SDK is not configured.',
+        };
+      }
+
+      const response = await sdk.auth.forgotPassword(email.trim());
 
       return {
         success: true,
-        message: apiMessage(response.data) ?? 'Se ha enviado el correo si existe una cuenta registrada.',
+        message: apiMessage(response) ?? 'Se ha enviado el correo si existe una cuenta registrada.',
       };
     } catch (error: unknown) {
       return {
@@ -84,22 +70,20 @@ export const identityService = {
       };
     }
 
-    if (!isApiConfigured()) {
-      return {
-        success: false,
-        message: 'API URL is not configured.',
-      };
-    }
-
     try {
-      const response = await axiosConfig.post(API_PATHS.resetPassword, {
-        token,
-        new_password: newPassword,
-      });
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return {
+          success: false,
+          message: error || 'Auth SDK is not configured.',
+        };
+      }
+
+      const response = await sdk.auth.resetPassword(token, newPassword);
 
       return {
         success: true,
-        message: apiMessage(response.data) ?? 'Contraseña actualizada correctamente.',
+        message: apiMessage(response) ?? 'Contraseña actualizada correctamente.',
       };
     } catch (error: unknown) {
       return {

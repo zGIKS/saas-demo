@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyService } from '@/services/iam/auth-verify.service';
-import { refreshTokenService } from '@/services/iam/auth-refresh.service';
-import { logoutService } from '@/services/iam/auth-logout.service';
-import { getTokenFromCookie, getRefreshTokenFromCookie, clearAuthCookies } from '@/lib/auth';
+import { getAuthSdk } from '@/services/iam/auth.service';
+import {
+  getTokenFromCookie,
+  getRefreshTokenFromCookie,
+  clearAuthCookies,
+  setTokenCookie,
+  setRefreshTokenCookie,
+} from '@/lib/auth';
 import { ROUTE_PATHS } from '@/lib/paths';
 
 interface User {
@@ -27,8 +31,10 @@ export function useAuth(): UseAuthReturn {
     try {
       const refreshToken = getRefreshTokenFromCookie();
       if (refreshToken) {
-        // Call backend logout endpoint
-        await logoutService.logout(refreshToken);
+        const { sdk } = getAuthSdk();
+        if (sdk) {
+          await sdk.auth.logout(refreshToken);
+        }
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -46,23 +52,48 @@ export function useAuth(): UseAuthReturn {
     try {
       const token = getTokenFromCookie();
       if (token) {
-        const verifyResult = await verifyService.verifyToken(token);
-        if (verifyResult?.is_valid && verifyResult.sub) {
-          setUser({ id: verifyResult.sub });
+        const { sdk } = getAuthSdk();
+        if (!sdk) {
+          await logout();
+          return;
+        }
+
+        let verifyResult: { is_valid: boolean } | null = null;
+        try {
+          verifyResult = await sdk.auth.verifyToken(token);
+        } catch (error) {
+          console.warn('Token verification failed:', error);
+          verifyResult = { is_valid: false };
+        }
+
+        if (verifyResult?.is_valid) {
+          setUser({ id: 'authenticated' });
         } else {
           // Try refresh token
           const refreshToken = getRefreshTokenFromCookie();
           if (refreshToken) {
-            const refreshResult = await refreshTokenService.refreshToken(refreshToken);
-            if (refreshResult.success) {
-              const newToken = getTokenFromCookie();
-              const newVerifyResult = await verifyService.verifyToken(newToken || undefined);
-              if (newVerifyResult?.is_valid && newVerifyResult.sub) {
-                setUser({ id: newVerifyResult.sub });
+            try {
+              const refreshResult = await sdk.auth.refreshToken(refreshToken);
+              if (refreshResult?.token) {
+                setTokenCookie(refreshResult.token);
+              }
+              if (refreshResult?.refresh_token) {
+                setRefreshTokenCookie(refreshResult.refresh_token);
+              }
+
+              const newToken = refreshResult?.token || getTokenFromCookie();
+              if (newToken) {
+                const newVerifyResult = await sdk.auth.verifyToken(newToken);
+                if (newVerifyResult?.is_valid) {
+                  setUser({ id: 'authenticated' });
+                } else {
+                  await logout();
+                }
               } else {
                 await logout();
               }
-            } else {
+            } catch (error) {
+              console.error('Refresh token error:', error);
               await logout();
             }
           } else {

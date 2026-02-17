@@ -1,5 +1,4 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
+import { getAuthSdk } from './auth.service';
 
 export interface LogoutResult {
   success: boolean;
@@ -9,9 +8,19 @@ export interface LogoutResult {
 export const logoutService = {
   async logout(refreshToken: string): Promise<LogoutResult> {
     try {
-      await axiosConfig.post('/api/v1/auth/logout', {
-        refresh_token: refreshToken,
-      });
+      if (!refreshToken) {
+        return { success: false, message: 'Refresh token is required.' };
+      }
+
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return {
+          success: false,
+          message: error || 'Auth SDK is not configured.',
+        };
+      }
+
+      await sdk.auth.logout(refreshToken);
 
       return {
         success: true,
@@ -19,28 +28,9 @@ export const logoutService = {
     } catch (error: unknown) {
       console.error('Logout service error:', error);
 
-      const isAxiosError = (err: unknown): err is AxiosError => {
-        return (err as AxiosError).response !== undefined;
-      };
-
-      if (isAxiosError(error) && error.response) {
-        const { status } = error.response;
-        if (status === 401) {
-          return {
-            success: false,
-            message: 'Invalid refresh token',
-          };
-        } else if (status === 400) {
-          return {
-            success: false,
-            message: 'Bad request',
-          };
-        }
-      }
-
       return {
         success: false,
-        message: 'Failed to logout',
+        message: error instanceof Error ? error.message : 'Failed to logout',
       };
     }
   },

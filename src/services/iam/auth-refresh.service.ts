@@ -1,6 +1,5 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
 import { setTokenCookie, setRefreshTokenCookie } from '@/lib/auth';
+import { getAuthSdk } from './auth.service';
 
 export interface RefreshResult {
   success: boolean;
@@ -12,48 +11,39 @@ export interface RefreshResult {
 export const refreshTokenService = {
   async refreshToken(refreshToken: string): Promise<RefreshResult> {
     try {
-      const response = await axiosConfig.post('/api/v1/auth/refresh-token', {
-        refresh_token: refreshToken,
-      });
+      if (!refreshToken) {
+        return { success: false, message: 'Refresh token is required.' };
+      }
+
+      const { sdk, error } = getAuthSdk();
+      if (!sdk) {
+        return {
+          success: false,
+          message: error || 'Auth SDK is not configured.',
+        };
+      }
+
+      const response = await sdk.auth.refreshToken(refreshToken);
 
       // Update cookies with new tokens
-      if (response.data.token) {
-        setTokenCookie(response.data.token);
+      if (response?.token) {
+        setTokenCookie(response.token);
       }
-      if (response.data.refresh_token) {
-        setRefreshTokenCookie(response.data.refresh_token);
+      if (response?.refresh_token) {
+        setRefreshTokenCookie(response.refresh_token);
       }
 
       return {
         success: true,
-        token: response.data.token,
-        refresh_token: response.data.refresh_token,
+        token: response?.token,
+        refresh_token: response?.refresh_token,
       };
     } catch (error: unknown) {
       console.error('Refresh token service error:', error);
 
-      const isAxiosError = (err: unknown): err is AxiosError => {
-        return (err as AxiosError).response !== undefined;
-      };
-
-      if (isAxiosError(error) && error.response) {
-        const { status } = error.response;
-        if (status === 401) {
-          return {
-            success: false,
-            message: 'Invalid or expired refresh token',
-          };
-        } else if (status === 400) {
-          return {
-            success: false,
-            message: 'Bad request',
-          };
-        }
-      }
-
       return {
         success: false,
-        message: 'Failed to refresh token',
+        message: error instanceof Error ? error.message : 'Failed to refresh token',
       };
     }
   },

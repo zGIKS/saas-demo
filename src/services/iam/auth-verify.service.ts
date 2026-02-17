@@ -1,5 +1,4 @@
-import { AxiosError } from 'axios';
-import axiosConfig from '../axios.config';
+import { getAuthSdk } from './auth.service';
 
 export interface VerifyResult {
   is_valid: boolean;
@@ -7,41 +6,39 @@ export interface VerifyResult {
   error?: string;
 }
 
-interface ApiErrorData {
-  message?: string;
-}
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 export const verifyService = {
   async verifyToken(token?: string): Promise<VerifyResult | null> {
-    try {
-      // For verify endpoint, we need to pass token as query param, not use Authorization header
-      const config = token ? {
-        params: { token },
-        headers: { 'Authorization': undefined } // Remove Authorization header for this request
-      } : {};
-
-      const response = await axiosConfig.get('/api/v1/auth/verify', config);
-
-      return response.data as VerifyResult;
-    } catch (error: unknown) {
-      console.error('Verify service error:', error);
-
-      const isAxiosError = (err: unknown): err is AxiosError => {
-        return (err as AxiosError).response !== undefined;
-      };
-
-      if (isAxiosError(error) && error.response) {
-        const { data } = error.response;
-        const errorData = data as ApiErrorData;
-        return {
-          is_valid: false,
-          error: errorData?.message || 'Verification failed',
-        };
-      }
-
+    if (!token) {
       return {
         is_valid: false,
-        error: 'Network error during verification',
+        error: 'Verification token is required',
+      };
+    }
+
+    const { sdk, error } = getAuthSdk();
+    if (!sdk) {
+      return {
+        is_valid: false,
+        error: error || 'Auth SDK is not configured.',
+      };
+    }
+
+    try {
+      const response = await sdk.auth.verifyToken(token);
+      return response as VerifyResult;
+    } catch (err) {
+      console.error('Verify service error:', err);
+      return {
+        is_valid: false,
+        error: getErrorMessage(err, 'Network error during verification'),
       };
     }
   },

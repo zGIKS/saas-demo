@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authService } from '@/services/iam/auth.service';
 
 interface SignUpData {
   email: string;
@@ -22,25 +23,17 @@ export function useSignUp(): UseSignUpReturn {
     setError(null);
 
     try {
-      const response = await fetch('/api/v1/auth/sign-up', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await authService.signUp(data);
 
-      const result = await response.json();
-
-      if (response.ok) {
+      if (result.success) {
         return { success: true };
       } else {
-        const errorMessage = result.error || 'Failed to create account';
+        const errorMessage = result.message || 'Failed to create account';
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
-    } catch {
-      const errorMessage = 'Network error. Please try again.';
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Network error. Please try again.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {

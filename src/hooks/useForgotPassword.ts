@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { identityService } from '@/services/iam/identity.service';
+import { getAuthSdk } from '@/services/iam/auth.service';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -17,17 +17,27 @@ export function useForgotPassword(): UseForgotPasswordReturn {
   const requestReset = async (email: string) => {
     setStatus('loading');
     setMessage('');
-    const result = await identityService.requestPasswordReset(email);
 
-    if (result.success) {
-      setStatus('success');
-      setMessage(result.message ?? 'Revisa tu bandeja. Si el correo existe, recibirás un enlace.');
-      return true;
+    const { sdk, error } = getAuthSdk();
+    if (!sdk) {
+      const errorMessage = error || 'Auth SDK is not configured.';
+      setStatus('error');
+      setMessage(errorMessage);
+      return false;
     }
 
-    setStatus('error');
-    setMessage(result.message ?? 'No se pudo procesar la solicitud.');
-    return false;
+    try {
+      await sdk.auth.forgotPassword(email.trim());
+
+      setStatus('success');
+      setMessage('Revisa tu bandeja. Si el correo existe, recibirás un enlace.');
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'No se pudo procesar la solicitud.';
+      setStatus('error');
+      setMessage(errorMessage);
+      return false;
+    }
   };
 
   const reset = () => {
