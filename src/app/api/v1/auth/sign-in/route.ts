@@ -32,6 +32,15 @@ const extractErrorMessage = async (response: Response): Promise<string> => {
   }
 };
 
+const buildRedirectWithBackendCookies = (location: string, backendResponse: Response) => {
+  const redirect = NextResponse.redirect(location);
+  const setCookieHeader = backendResponse.headers.get('set-cookie');
+  if (setCookieHeader) {
+    redirect.headers.append('set-cookie', setCookieHeader);
+  }
+  return redirect;
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const provider = searchParams.get('provider');
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
   if (response.status >= 300 && response.status < 400) {
     const location = response.headers.get('location');
     if (location) {
-      return NextResponse.redirect(location);
+      return buildRedirectWithBackendCookies(location, response);
     }
   }
 
@@ -68,7 +77,7 @@ export async function GET(request: NextRequest) {
     try {
       const data = (await response.json()) as { url?: string };
       if (data?.url) {
-        return NextResponse.redirect(data.url);
+        return buildRedirectWithBackendCookies(data.url, response);
       }
     } catch {
       // fall through

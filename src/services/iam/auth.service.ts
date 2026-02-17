@@ -1,4 +1,4 @@
-import { AuthSDK } from 'auth-sdk';
+import { AuthSDK } from 'asphanyx-sdk';
 import axiosConfig from '../axios.config';
 
 export interface SignUpData {
