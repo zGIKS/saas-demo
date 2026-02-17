@@ -13,34 +13,6 @@ const resolveBackendConfig = () => {
   };
 };
 
-const extractErrorMessage = async (response: Response): Promise<string> => {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    try {
-      const data = (await response.json()) as { message?: string; error?: string };
-      return data?.message || data?.error || 'Google auth failed';
-    } catch {
-      return 'Google auth failed';
-    }
-  }
-
-  try {
-    const text = await response.text();
-    return text ? text.slice(0, 160) : 'Google auth failed';
-  } catch {
-    return 'Google auth failed';
-  }
-};
-
-const buildRedirectWithBackendCookies = (location: string, backendResponse: Response) => {
-  const redirect = NextResponse.redirect(location);
-  const setCookieHeader = backendResponse.headers.get('set-cookie');
-  if (setCookieHeader) {
-    redirect.headers.append('set-cookie', setCookieHeader);
-  }
-  return redirect;
-};
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const provider = searchParams.get('provider');
@@ -57,37 +29,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const googleUrl = `${baseUrl}/api/v1/auth/google`;
-  const response = await fetch(googleUrl, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${anonKey}`,
-    },
-    redirect: 'manual',
-  });
-
-  if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get('location');
-    if (location) {
-      return buildRedirectWithBackendCookies(location, response);
-    }
-  }
-
-  if (response.ok) {
-    try {
-      const data = (await response.json()) as { url?: string };
-      if (data?.url) {
-        return buildRedirectWithBackendCookies(data.url, response);
-      }
-    } catch {
-      // fall through
-    }
-  }
-
-  const message = await extractErrorMessage(response);
-  return NextResponse.redirect(
-    new URL(`/sign-in?error=${encodeURIComponent(message)}`, request.url)
-  );
+  const googleUrl = new URL('/api/v1/auth/google', baseUrl);
+  googleUrl.searchParams.set('anon_key', anonKey);
+  return NextResponse.redirect(googleUrl);
 }
 
 export async function POST(request: NextRequest) {
