@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { getTokenFromCookie } from '@/lib/auth';
 
 // Axios configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE;
 
 const axiosConfig: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

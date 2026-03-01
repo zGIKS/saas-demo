@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const resolveBackendConfig = () => {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_URL?.trim();
-  const anonKey =
-    process.env.NEXT_PUBLIC_TENANT_KEY?.trim() ?? process.env.NEXT_PUBLIC_ANON_KEY?.trim();
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE?.trim();
+  const tenantAnonKey = process.env.NEXT_PUBLIC_TENANT_KEY?.trim();
 
   return {
     baseUrl: baseUrl ? baseUrl.replace(/\/$/, '') : null,
-    anonKey: anonKey || null,
+    tenantAnonKey: tenantAnonKey || null,
   };
 };
 
@@ -40,20 +38,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Verification token is required' }, { status: 400 });
     }
 
-    const { baseUrl, anonKey } = resolveBackendConfig();
-    if (!baseUrl || !anonKey) {
+    const { baseUrl, tenantAnonKey } = resolveBackendConfig();
+    if (!baseUrl || !tenantAnonKey) {
       return NextResponse.json(
         { error: 'Backend configuration missing. Check NEXT_PUBLIC_API_BASE and NEXT_PUBLIC_TENANT_KEY.' },
         { status: 500 }
       );
     }
 
-    const verifyUrl = `${baseUrl}/api/v1/identity/confirm-registration?token=${encodeURIComponent(token.trim())}`;
+    const verifyUrl = `${baseUrl}/api/v1/identity/confirm-registration?token=${encodeURIComponent(token.trim())}&tenant_anon_key=${encodeURIComponent(tenantAnonKey)}`;
     const response = await fetch(verifyUrl, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${anonKey}`,
-      },
       redirect: 'manual',
     });
 

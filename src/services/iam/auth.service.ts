@@ -1,5 +1,4 @@
 import { AuthSDK } from 'asphanyx-sdk';
-import axiosConfig from '../axios.config';
 
 export interface SignUpData {
   email: string;
@@ -19,26 +18,23 @@ export interface AuthResult {
 
 let sdkInstance: AuthSDK | null = null;
 
-const resolveSdkConfig = (): { apiKey: string; baseUrl: string } | { error: string } => {
-  const apiKey =
-    process.env.NEXT_PUBLIC_TENANT_KEY?.trim() ?? process.env.NEXT_PUBLIC_ANON_KEY?.trim();
-  if (!apiKey) {
+const resolveSdkConfig = (): { tenantAnonKey: string; baseUrl: string } | { error: string } => {
+  const tenantAnonKey = process.env.NEXT_PUBLIC_TENANT_KEY?.trim();
+  if (!tenantAnonKey) {
     return {
-      error:
-        'NEXT_PUBLIC_TENANT_KEY is not set. Please configure your tenant anon key (or NEXT_PUBLIC_ANON_KEY).',
+      error: 'NEXT_PUBLIC_TENANT_KEY is not set. Please configure your tenant anon key.',
     };
   }
 
-  const baseUrlRaw =
-    process.env.NEXT_PUBLIC_API_BASE?.trim() ?? process.env.NEXT_PUBLIC_API_URL?.trim();
+  const baseUrlRaw = process.env.NEXT_PUBLIC_API_BASE?.trim();
   const baseUrl = baseUrlRaw ? baseUrlRaw.replace(/\/$/, '') : undefined;
   if (!baseUrl) {
     return {
-      error: 'NEXT_PUBLIC_API_BASE is not set. Please configure the backend URL (or NEXT_PUBLIC_API_URL).',
+      error: 'NEXT_PUBLIC_API_BASE is not set. Please configure the backend URL.',
     };
   }
 
-  return { apiKey, baseUrl };
+  return { tenantAnonKey, baseUrl };
 };
 
 export const getAuthSdk = (): { sdk: AuthSDK | null; error?: string } => {
@@ -52,9 +48,8 @@ export const getAuthSdk = (): { sdk: AuthSDK | null; error?: string } => {
   }
 
   sdkInstance = new AuthSDK({
-    apiKey: config.apiKey,
+    tenantAnonKey: config.tenantAnonKey,
     baseUrl: config.baseUrl,
-    credentialHeader: 'authorization',
   });
 
   return { sdk: sdkInstance };
@@ -77,24 +72,20 @@ export const authService = {
       };
     }
 
-    const config = resolveSdkConfig();
-    if ('error' in config) {
-      return { success: false, message: config.error };
+    const { sdk, error } = getAuthSdk();
+    if (!sdk) {
+      return { success: false, message: error || 'Auth SDK is not configured.' };
     }
 
     try {
-      const response = await axiosConfig.post('/api/v1/identity/sign-up', {
+      const response = await sdk.auth.signUp({
         email: data.email.trim(),
         password: data.password,
-      }, {
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-        },
       });
 
       return {
         success: true,
-        data: response.data,
+        data: response,
       };
     } catch (err) {
       console.error('Sign up service error:', err);
