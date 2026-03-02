@@ -1,4 +1,4 @@
-import { getAuthSdk } from './auth.service';
+import { verifyTokenWithBackend } from './auth.service';
 
 export interface VerifyResult {
   is_valid: boolean;
@@ -23,16 +23,8 @@ export const verifyService = {
       };
     }
 
-    const { sdk, error } = getAuthSdk();
-    if (!sdk) {
-      return {
-        is_valid: false,
-        error: error || 'Auth SDK is not configured.',
-      };
-    }
-
     try {
-      const response = await sdk.auth.verifyToken(token);
+      const response = await verifyTokenWithBackend(token);
       return response as VerifyResult;
     } catch (err) {
       console.error('Verify service error:', err);

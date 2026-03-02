@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuthSdk } from '@/services/iam/auth.service';
+import { getAuthSdk, verifyTokenWithBackend } from '@/services/iam/auth.service';
 import {
   getTokenFromCookie,
   getRefreshTokenFromCookie,
@@ -60,7 +60,7 @@ export function useAuth(): UseAuthReturn {
 
         let verifyResult: { is_valid: boolean } | null = null;
         try {
-          verifyResult = await sdk.auth.verifyToken(token);
+          verifyResult = await verifyTokenWithBackend(token);
         } catch (error) {
           console.warn('Token verification failed:', error);
           verifyResult = { is_valid: false };
@@ -83,7 +83,7 @@ export function useAuth(): UseAuthReturn {
 
               const newToken = refreshResult?.token || getTokenFromCookie();
               if (newToken) {
-                const newVerifyResult = await sdk.auth.verifyToken(newToken);
+                const newVerifyResult = await verifyTokenWithBackend(newToken);
                 if (newVerifyResult?.is_valid) {
                   setUser({ id: 'authenticated' });
                 } else {

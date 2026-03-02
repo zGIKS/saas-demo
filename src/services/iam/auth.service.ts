@@ -16,6 +16,14 @@ export interface AuthResult {
   message?: string;
 }
 
+export interface VerifyTokenResult {
+  is_valid: boolean;
+  sub?: string;
+  tid?: string;
+  role?: string;
+  error?: string;
+}
+
 let sdkInstance: AuthSDK | null = null;
 
 const resolveSdkConfig = (): { tenantAnonKey: string; baseUrl: string } | { error: string } => {
@@ -127,4 +135,26 @@ export const authService = {
       };
     }
   },
+};
+
+export const verifyTokenWithBackend = async (token: string): Promise<VerifyTokenResult> => {
+  const config = resolveSdkConfig();
+  if ('error' in config) {
+    throw new Error(config.error);
+  }
+
+  const response = await fetch(`${config.baseUrl}/api/v1/auth/verify`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Token verification failed with status ${response.status}`);
+  }
+
+  const payload = (await response.json()) as VerifyTokenResult;
+  return payload;
 };

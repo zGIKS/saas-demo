@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getTokenFromServerCookie } from '@/lib/auth';
-import { getAuthSdk } from '@/services/iam/auth.service';
+import { verifyTokenWithBackend } from '@/services/iam/auth.service';
 
 export async function proxy(request: NextRequest) {
   // Get the token from cookies
@@ -21,14 +21,7 @@ export async function proxy(request: NextRequest) {
 
     // Optional: Verify token with backend
     try {
-      const { sdk } = getAuthSdk();
-      if (!sdk) {
-        const response = NextResponse.redirect(new URL('/sign-in', request.url));
-        response.cookies.delete('auth_token');
-        return response;
-      }
-
-      const verifyData = await sdk.auth.verifyToken(token);
+      const verifyData = await verifyTokenWithBackend(token);
       if (!verifyData?.is_valid) {
         const response = NextResponse.redirect(new URL('/sign-in', request.url));
         response.cookies.delete('auth_token');
